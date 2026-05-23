@@ -24,14 +24,21 @@ class GalleryViewModel: ObservableObject {
     }
     
     private func loadAlbumsFromPersistence() {
-        if let data = UserDefaults.standard.data(forKey: persistenceKey),
-           let decoded = try? JSONDecoder().decode([CloudAlbum].self, from: data) {
+    if let data = UserDefaults.standard.data(forKey: persistenceKey) {
+        do {
+            // محاولة فك الترميز بأمان داخل حاوية حماية
+            let decoded = try JSONDecoder().decode([CloudAlbum].self, from: data)
             self.albums = decoded
-        } else {
-            // إذا كان المستخدم يفتح التطبيق لأول مرة في حياته، ننشئ الألبومات الافتراضية تلقائياً
+        } catch {
+            // حماية قصوى: إذا فشل بسبب كاش قديم، نمسح الذاكرة المعطوبة وننشئ الألبومات الافتراضية فوراً بدلاً من الانهيار
+            UserDefaults.standard.removeObject(forKey: persistenceKey)
             createDefaultSystemAlbums()
         }
+    } else {
+        // أول مرة يفتح فيها التطبيق
+        createDefaultSystemAlbums()
     }
+}
     
     private func createDefaultSystemAlbums() {
         let recentAlbum = CloudAlbum(id: UUID(), name: "Recent", assets: [], isFullySynced: true, isSystemAlbum: true)
