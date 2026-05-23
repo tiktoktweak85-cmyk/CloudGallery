@@ -2,10 +2,10 @@ import SwiftUI
 
 struct AlbumGridView: View {
     @ObservedObject var galleryVM: GalleryViewModel
+    @EnvironmentObject var storageManager: StorageViewModel // جلب كائن المساحات
     @State private var showCreateAlbumAlert = false
     @State private var newAlbumName = ""
     
-    // تحديد الهيكل الشبكي: عمودين متساويين ومرنين بنفس أبعاد تطبيق Photos الأصلي
     private let gridColumns = [
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16)
@@ -15,7 +15,6 @@ struct AlbumGridView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 
-                // زر إنشاء ألبوم جديد (يظهر في الأعلى كخيار سريع ونظيف)
                 HStack {
                     Text("My Albums")
                         .font(.system(size: 22, weight: .bold))
@@ -30,7 +29,6 @@ struct AlbumGridView: View {
                 .padding(.top, 10)
                 
                 if galleryVM.albums.isEmpty {
-                    // واجهة فارغة احترافية عند عدم وجود ألبومات
                     VStack(spacing: 12) {
                         Spacer(minLength: 100)
                         Image(systemName: "photo.on.rectangle.angled")
@@ -39,40 +37,27 @@ struct AlbumGridView: View {
                         Text("No Albums Yet")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.secondary)
-                        Text("Tap the plus icon above to create your first cloud-routed album.")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
                         Spacer()
                     }
                     .frame(maxWidth: .infinity)
                 } else {
-                    // الشبكة الحقيقية للألبومات (مربعات جنباً إلى جنب)
                     LazyVGrid(columns: gridColumns, spacing: 20) {
                         ForEach(galleryVM.albums) { album in
-                            // عند الضغط على الألبوم يفتح شبكة الصور الداخلية الخاصة به
-                            NavigationLink(destination: MediaGridView(album: album, galleryVM: galleryVM)) {
+                            // تمرير بيئة الحسابات السحابية لواجهة الصور الداخلية لتمكين الرفع الذكي
+                            NavigationLink(destination: MediaGridView(album: album, galleryVM: galleryVM).environmentObject(storageManager)) {
                                 VStack(alignment: .leading, spacing: 6) {
                                     
-                                    // 1. حاوية غلاف الألبوم المربعة تماماً
                                     GeometryReader { geo in
                                         ZStack(alignment: .bottomTrailing) {
-                                            if let _ = album.coverAsset {
-                                                // هنا سيتم عرض غلاف الصورة الحقيقي بعد اكتمال محرك التحميل
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(Color(.systemGray5))
-                                            } else {
-                                                // غلاف افتراضي أنيق للألبوم الفارغ
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(Color(.systemGray6))
-                                                Image(systemName: "photo")
-                                                    .font(.system(size: 35))
-                                                    .foregroundColor(Color(.systemGray3))
-                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            }
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(Color(.systemGray6))
                                             
-                                            // مؤشر المزامنة السحابية الخاص بتطبيقك في الزاوية
+                                            // تغيير الأيقونة الافتراضية بناءً على نوع الألبوم لمحاكاة آبل
+                                            Image(systemName: album.name == "Favorites" ? "heart.fill" : (album.name == "Recent" ? "clock.fill" : "photo"))
+                                                .font(.system(size: 30))
+                                                .foregroundColor(album.name == "Favorites" ? .pink : Color(.systemGray3))
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            
                                             Image(systemName: album.isFullySynced ? "checkmark.cloud.fill" : "arrow.clockwise.cloud")
                                                 .font(.system(size: 14))
                                                 .foregroundColor(album.isFullySynced ? .blue : .orange)
@@ -81,11 +66,10 @@ struct AlbumGridView: View {
                                                 .clipShape(Circle())
                                                 .padding(8)
                                         }
-                                        .frame(width: geo.size.width, height: geo.size.width) // ضمان المربع الكامل 1:1
+                                        .frame(width: geo.size.width, height: geo.size.width)
                                     }
                                     .aspectRatio(1, contentMode: .fit)
                                     
-                                    // 2. تفاصيل الألبوم السفلى (نفس خطوط وتنسيق آبل تماماً)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(album.name)
                                             .font(.system(size: 15, weight: .medium))
@@ -99,7 +83,7 @@ struct AlbumGridView: View {
                                     .padding(.leading, 2)
                                 }
                             }
-                            .buttonStyle(PlainButtonStyle()) // إلغاء تأثير الضغط الأزرق التلقائي للحفاظ على الهوية
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal)
@@ -107,7 +91,6 @@ struct AlbumGridView: View {
             }
         }
         .navigationTitle("Gallery")
-        // نافذة الإدخال لإنشاء ألبوم حقيقي
         .sheet(isPresented: $showCreateAlbumAlert) {
             NavigationView {
                 Form {
