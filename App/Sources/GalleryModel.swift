@@ -1,34 +1,31 @@
 import Foundation
 
-// نوع الملف: صورة أو فيديو
-enum AssetMediaType {
+// دعم Codable لضمان الحفظ المستمر والآمن في ذاكرة الهاتف
+enum AssetMediaType: String, Codable {
     case image
     case video
 }
 
-// نموذج الملف الحقيقي داخل الألبوم (قادم من مسار سحابي)
-struct CloudAsset: Identifiable, Equatable {
-    let id: String // المعرف الفريد القادم من الـ API
-    let remoteURL: String // رابط الملف على السيرفر/السحابة
+struct CloudAsset: Identifiable, Equatable, Codable {
+    let id: String
+    let remoteURL: String
     let mediaType: AssetMediaType
     let fileSize: Int64
     let creationDate: Date
-    let duration: TimeInterval? // مخصص للفيديوهات فقط
+    let duration: TimeInterval?
 }
 
-// نموذج الألبوم الحقيقي (يمثل مجلداً سحابياً)
-struct CloudAlbum: Identifiable, Equatable {
+struct CloudAlbum: Identifiable, Equatable, Codable {
     let id: UUID
     let name: String
     var assets: [CloudAsset]
-    let isFullySynced: Bool // يوضح حالة المزامنة السحابية للألبوم
+    var isFullySynced: Bool
+    var isSystemAlbum: Bool // لتمييز ألبومات النظام (Recent / Favorite) لمنع حذفها وتغيير خصائصها
     
-    // حساب عدد العناصر داخل الألبوم تلقائياً
     var itemCount: Int {
         assets.count
     }
     
-    // جلب رابط آخر صورة لتعيينها كغلاف للألبوم (مثل تطبيق آبل)
     var coverAsset: CloudAsset? {
         assets.last
     }
