@@ -30,39 +30,57 @@ struct CloudAccount: Identifiable, Equatable {
 // MARK: - CORE STORAGE VIEWMODEL (متحكم منطق التوجيه والمساحة الفعلي)
 
 class StorageViewModel: ObservableObject {
-    // تبدأ المصفوفة فارغة تماماً بانتظار تسجيل المستخدم الفعلي
     @Published var connectedAccounts: [CloudAccount] = []
+    @Published var isConnecting = false
+    @Published var connectionError: String? = nil
     
-    // حساب المساحة التراكمية الكلية حقيقياً من المنصات المرتبطة
     var totalAggregateStorage: Int64 {
         connectedAccounts.reduce(0) { $0 + $1.totalStorage }
     }
     
-    // حساب المساحة المستهلكة الفعلية من إجمالي المنصات
     var totalAggregateUsedStorage: Int64 {
         connectedAccounts.reduce(0) { $0 + $1.usedStorage }
     }
     
-    // دالة إعادة ترتيب الأولويات (Priority Routing): الترتيب يحدد خط تدفق رفع الصور التلقائي
     func moveAccountPriority(from source: IndexSet, to destination: Int) {
         connectedAccounts.move(fromOffsets: source, toOffset: destination)
     }
     
-    // دالة البنية الأساسية لإضافة الحساب بعد نجاح الـ API والـ Authentication
-    func addNewAuthenticatedAccount(name: String, type: CloudPlatformType, totalSpaceGB: Int64, url: String? = nil) {
-        let bytesInGB: Int64 = 1024 * 1024 * 1024
-        let newAccount = CloudAccount(
-            id: UUID(),
-            name: name,
-            type: type,
-            usedStorage: 0, // الحساب الجديد يبدأ بـ 0 مستهلك حتى يتم جلب بياناته حقيقياً
-            totalStorage: totalSpaceGB * bytesInGB,
-            serverURL: url
-        )
-        connectedAccounts.append(newAccount)
+    // الدالة المحدثة: تتصل بالخادم وتتحقق من صحة البيانات وتجلب مساحته التخزينية الحقيقية فوراً
+    @MainActor
+    func linkRealWebDAVAccount(customName: String, urlString: String, user: String, pass: String) async {
+        guard let url = URL(string: urlString) else {
+            self.connectionError = "Invalid server URL scheme."
+            return
+        }
+        
+        self.isConnecting = true
+        self.connectionError = nil
+        
+        // إنشاء الخدمة وربطها بالخادم الحقيقي للمستخدم
+        let service = WebDAVService(serverURL: url, username: user, password: pass)
+        
+        do {
+            // محاولة جلب كوتة المساحة الفعلية عبر الشبكة
+            let quota = try await service.fetchStorageQuota()
+            
+            let newAccount = CloudAccount(
+                id: UUID(),
+                name: customName,
+                type: .customWebDAV,
+                usedStorage: quota.usedBytes,
+                totalStorage: quota.totalBytes,
+                serverURL: urlString
+            )
+            
+            self.connectedAccounts.append(newAccount)
+            self.isConnecting = false
+        } catch {
+            self.isConnecting = false
+            self.connectionError = "Failed to connect: Check URL or Credentials."
+        }
     }
 }
-
 // MARK: - CLOUD SETTINGS VIEW (واجهة الإعدادات والربط الحقيقي)
 
 struct CloudSettingsView: View {
