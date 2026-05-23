@@ -2,32 +2,24 @@ import SwiftUI
 
 @main
 struct CloudGalleryApp: App {
-    // كائن الحالة المركزي والمشترك لإدارة الحسابات السحابية والمساحة الحقيقية عبر التطبيق
     @StateObject private var storageViewModel = StorageViewModel()
+    // إنشاء كائن الحالة المركزي لإدارة الصور والألبومات في التطبيق بالكامل
+    @StateObject private var galleryViewModel = GalleryViewModel()
     
     var body: some Scene {
         WindowGroup {
             TabView {
-                // الواجهة الأولى: المعرض والألبومات (سنقوم بإنشاء ملفها المستقل لاحقاً)
+                // الواجهة الأولى: معرض الألبومات الحقيقي المطابق لتطبيق Photos الأصلي لآبل
                 NavigationView {
-                    VStack {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray)
-                            .padding()
-                        Text("Gallery Interface Container")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.gray)
-                    }
-                    .navigationTitle("Gallery")
+                    AlbumGridView(galleryVM: galleryViewModel)
                 }
                 .navigationViewStyle(StackNavigationViewStyle())
                 .tabItem {
                     Image(systemName: "photo.on.rectangle.angled")
-                    Text("Gallery")
+                    Text("Albums")
                 }
                 
-                // الواجهة الثانية: الإعدادات وإدارة منصات التخزين السحابي الفعلي
+                // الواجهة الثانية: الإعدادات وإدارة منصات التخزين السحابي والـ APIs الفعلي
                 CloudSettingsView()
                     .environmentObject(storageViewModel)
                     .tabItem {
@@ -35,7 +27,7 @@ struct CloudGalleryApp: App {
                         Text("Settings")
                     }
             }
-            .accentColor(.blue) // اللون الرئيسي للتفاعل في التطبيق
+            .accentColor(.blue)
         }
     }
 }
